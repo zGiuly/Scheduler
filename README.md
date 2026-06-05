@@ -14,9 +14,29 @@ A lightweight CLI task scheduler written in C++20 featuring MySQL persistence, a
 
 - **CMake** (v3.15+)
 - **MySQL Server**
-- **OpenSSL** (Required for HTTPS task execution. If missing, the application builds successfully but HTTPS tasks will return a runtime error).
-  - *Linux (Ubuntu/Debian)*: `sudo apt install libssl-dev`
-  - *Windows*: `winget install OpenSSL.OpenSSL` or `vcpkg install openssl:x64-windows`
+- **vcpkg** — used to install OpenSSL automatically at configure time.
+
+  Set the `VCPKG_ROOT` environment variable to your vcpkg installation directory:
+
+  ```bash
+  # Linux/macOS
+  export VCPKG_ROOT=~/vcpkg
+
+  # Windows (PowerShell)
+  $env:VCPKG_ROOT = "C:\path\to\vcpkg"
+  ```
+
+  On **Windows with Visual Studio 2022**, vcpkg is bundled and no extra setup is needed.
+
+  On **Linux/macOS**, install vcpkg if you don't have it:
+
+  ```bash
+  git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+  ~/vcpkg/bootstrap-vcpkg.sh
+  export VCPKG_ROOT=~/vcpkg
+  ```
+
+  OpenSSL and any other dependencies declared in `vcpkg.json` are installed automatically during CMake configure.
 
 ## Build Instructions
 
@@ -27,7 +47,7 @@ cmake -B out/build/x64-debug --preset x64-debug
 cmake --build out/build/x64-debug
 ```
 
-*Note: Header-only dependencies (`cpp-httplib` and `nlohmann/json`) are downloaded automatically via CMake FetchContent.*
+*Header-only dependencies (`cpp-httplib` and `nlohmann/json`) are fetched automatically via CMake FetchContent. OpenSSL is installed via vcpkg on first configure.*
 
 ## How to Run
 

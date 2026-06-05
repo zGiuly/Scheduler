@@ -1,0 +1,8 @@
+{
+  "name": "scheduler",
+  "version": "1.0.0",
+  "builtin-baseline": "3bdaa9b42070c241c1bdb02b4cf01f90de579738",
+  "dependencies": [
+    "openssl"
+  ]
+}
