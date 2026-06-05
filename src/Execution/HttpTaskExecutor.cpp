@@ -4,13 +4,15 @@
 #include <stdexcept>
 
 std::string HttpTaskExecutor::execute(const std::string& command, long long timeoutMs, long long& executionTimeMs) {
-    constexpr int defaultHttpPort = 80;
-    const std::string scheme = "http://";
-
-    size_t schemePos = command.find(scheme);
+    int port = 80;
     size_t startPos = 0;
-    if (schemePos != std::string::npos) {
-        startPos = schemePos + scheme.length();
+
+    if (command.rfind("https://", 0) == 0) {
+        port = 443;
+        startPos = 8;
+    } else if (command.rfind("http://", 0) == 0) {
+        port = 80;
+        startPos = 7;
     }
 
     size_t slashPos = command.find('/', startPos);
@@ -18,7 +20,6 @@ std::string HttpTaskExecutor::execute(const std::string& command, long long time
     std::string path = (slashPos == std::string::npos) ? "/" : command.substr(slashPos);
 
     std::string host = hostPort;
-    int port = defaultHttpPort;
     size_t colonPos = hostPort.find(':');
     if (colonPos != std::string::npos) {
         host = hostPort.substr(0, colonPos);
