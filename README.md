@@ -12,7 +12,7 @@ A lightweight CLI task scheduler written in C++20 featuring MySQL persistence, a
 
 ## Prerequisites
 
-- **CMake** (v3.14+)
+- **CMake** (v3.15+)
 - **MySQL Server**
 
 ## Build Instructions
@@ -65,7 +65,7 @@ Once running, the scheduler listens on port `8080` (or your configured port).
       "oneshot": false
     }
     ```
-- `GET /api/tasks` - List all active tasks.
+- `GET /api/tasks` - List all tasks (including disabled ones).
 - `POST /api/tasks/<id>/trigger` - Manually trigger a task by ID.
 - `PUT /api/tasks/<id>` - Modify an existing task by ID (supports partial updates).
   - Body:
@@ -85,4 +85,14 @@ Once running, the scheduler listens on port `8080` (or your configured port).
 ### Logs API
 - `GET /api/logs` - List all execution logs.
 - `GET /api/logs/<id>` - Retrieve a specific log by ID.
-- `DELETE /api/logs/<id>` - Delete a specific log by ID.
+- `DELETE /api/logs` - Delete multiple logs.
+  - Body (JSON Array):
+    ```json
+    [1, 2, 3]
+    ```
+  - Or Body (JSON Object):
+    ```json
+    {
+      "ids": [1, 2, 3]
+    }
+    ```
