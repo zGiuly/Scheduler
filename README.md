@@ -14,6 +14,9 @@ A lightweight CLI task scheduler written in C++20 featuring MySQL persistence, a
 
 - **CMake** (v3.15+)
 - **MySQL Server**
+- **OpenSSL** (Required for HTTPS task execution. If missing, the application builds successfully but HTTPS tasks will return a runtime error).
+  - *Linux (Ubuntu/Debian)*: `sudo apt install libssl-dev`
+  - *Windows*: `winget install OpenSSL.OpenSSL` or `vcpkg install openssl:x64-windows`
 
 ## Build Instructions
 

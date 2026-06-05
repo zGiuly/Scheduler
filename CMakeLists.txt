@@ -71,6 +71,12 @@ add_executable(Scheduler ${SOURCES})
 target_include_directories(Scheduler PRIVATE ${MYSQL_INCLUDE_DIR})
 target_link_libraries(Scheduler PRIVATE nlohmann_json::nlohmann_json httplib::httplib ${MYSQL_LIBRARIES})
 
+find_package(OpenSSL)
+if(OPENSSL_FOUND)
+    target_compile_definitions(Scheduler PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+    target_link_libraries(Scheduler PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+endif()
+
 if(WIN32)
     find_file(MYSQL_DLL libmysql.dll
         HINTS

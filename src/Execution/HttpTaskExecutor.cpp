@@ -4,27 +4,36 @@
 #include <stdexcept>
 
 std::string HttpTaskExecutor::execute(const std::string& command, long long timeoutMs, long long& executionTimeMs) {
-    int port = 80;
+#ifndef CPPHTTPLIB_OPENSSL_SUPPORT
+    if (command.rfind("https://", 0) == 0) {
+        executionTimeMs = 0;
+        return "Error: HTTPS is not supported in this build (OpenSSL not found)";
+    }
+#endif
+
+    std::string schemeHostPort;
+    std::string path = "/";
     size_t startPos = 0;
 
     if (command.rfind("https://", 0) == 0) {
-        port = 443;
         startPos = 8;
     } else if (command.rfind("http://", 0) == 0) {
-        port = 80;
         startPos = 7;
     }
 
     size_t slashPos = command.find('/', startPos);
-    std::string hostPort = (slashPos == std::string::npos) ? command.substr(startPos) : command.substr(startPos, slashPos - startPos);
-    std::string path = (slashPos == std::string::npos) ? "/" : command.substr(slashPos);
+    if (slashPos == std::string::npos) {
+        schemeHostPort = command;
+        path = "/";
+    } else {
+        schemeHostPort = command.substr(0, slashPos);
+        path = command.substr(slashPos);
+    }
 
-    std::string host = hostPort;
-    size_t colonPos = hostPort.find(':');
+    size_t colonPos = schemeHostPort.find(':', startPos);
     if (colonPos != std::string::npos) {
-        host = hostPort.substr(0, colonPos);
         try {
-            port = std::stoi(hostPort.substr(colonPos + 1));
+            static_cast<void>(std::stoi(schemeHostPort.substr(colonPos + 1)));
         }
         catch (const std::exception&) {
             executionTimeMs = 0;
@@ -33,7 +42,7 @@ std::string HttpTaskExecutor::execute(const std::string& command, long long time
     }
 
     auto startTime = std::chrono::high_resolution_clock::now();
-    httplib::Client client(host, port);
+    httplib::Client client(schemeHostPort);
 
     long long timeoutSeconds = timeoutMs / 1000;
     long long timeoutMicroseconds = (timeoutMs % 1000) * 1000;
