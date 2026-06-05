@@ -57,7 +57,13 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path release-windows
           Copy-Item -Path build/Release/Scheduler.exe -Destination release-windows/
-          Copy-Item -Path build/Release/libmysql.dll -Destination release-windows/
+          Copy-Item -Path build/Release/*.dll -Destination release-windows/ -ErrorAction SilentlyContinue
+          if (Test-Path "C:\Program Files\OpenSSL-Win64\bin") {
+              Copy-Item -Path "C:\Program Files\OpenSSL-Win64\bin\*.dll" -Destination release-windows/ -ErrorAction SilentlyContinue
+          }
+          if (Test-Path "C:\Program Files\OpenSSL\bin") {
+              Copy-Item -Path "C:\Program Files\OpenSSL\bin\*.dll" -Destination release-windows/ -ErrorAction SilentlyContinue
+          }
           Copy-Item -Path wwwroot -Destination release-windows/ -Recurse
           Copy-Item -Path schema.sql -Destination release-windows/
           Compress-Archive -Path release-windows/* -DestinationPath scheduler-windows-x64.zip
