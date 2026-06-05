@@ -1,0 +1,96 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libmysqlclient-dev
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package Artifact
+        run: |
+          mkdir release-linux
+          cp build/Scheduler release-linux/
+          cp -r wwwroot release-linux/
+          cp schema.sql release-linux/
+          tar -czvf scheduler-linux-x64.tar.gz release-linux/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduler-linux-x64
+          path: scheduler-linux-x64.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package Artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-windows
+          Copy-Item -Path build/Release/Scheduler.exe -Destination release-windows/
+          Copy-Item -Path build/Release/libmysql.dll -Destination release-windows/
+          Copy-Item -Path wwwroot -Destination release-windows/ -Recurse
+          Copy-Item -Path schema.sql -Destination release-windows/
+          Compress-Archive -Path release-windows/* -DestinationPath scheduler-windows-x64.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduler-windows-x64
+          path: scheduler-windows-x64.zip
+
+  create-release:
+    name: Create Draft Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: scheduler-linux-x64
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: scheduler-windows-x64
+
+      - name: Create Release Draft
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          files: |
+            scheduler-linux-x64.tar.gz
+            scheduler-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

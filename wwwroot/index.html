@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scheduler Control Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/cronstrue@2.50.0/dist/cronstrue.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+</head>
+<body x-data x-cloak>
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3.5" y="4" width="17" height="16" rx="2.5"></rect>
+                    <line x1="7.5" y1="9" x2="16.5" y2="9"></line>
+                    <line x1="7.5" y1="12.5" x2="14" y2="12.5"></line>
+                    <line x1="7.5" y1="16" x2="12" y2="16"></line>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <h1>Scheduler</h1>
+                <span>Control Panel</span>
+            </div>
+        </div>
+        <nav class="nav">
+            <button class="nav-item"
+                    :class="{ active: $store.app.route.name === 'tasks' }"
+                    @click="$store.app.navigate('/tasks')">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                        <path d="m9 16 2 2 4-4"></path>
+                    </svg>
+                </span>
+                <span>Tasks</span>
+            </button>
+            <button class="nav-item"
+                    :class="{ active: $store.app.route.name === 'logs' || $store.app.route.name === 'logDetail' }"
+                    @click="$store.app.navigate('/logs')">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="8" y1="13" x2="16" y2="13"></line>
+                        <line x1="8" y1="17" x2="14" y2="17"></line>
+                    </svg>
+                </span>
+                <span>Execution Logs</span>
+            </button>
+        </nav>
+        <div class="status">
+            <span class="status-dot" :class="{ ok: $store.app.connected, err: !$store.app.connected }"></span>
+            <span x-text="$store.app.connected ? 'Connected' : 'Disconnected'"></span>
+        </div>
+    </aside>
+
+    <main class="content">
+        <header class="topbar">
+            <div>
+                <h2 x-text="$store.app.route.title"></h2>
+                <p class="muted" x-text="$store.app.route.subtitle"></p>
+            </div>
+            <div class="topbar-actions">
+                <template x-if="$store.app.route.name === 'tasks'">
+                    <button class="btn btn-primary" @click="$store.modal.show('taskCreate')">+ New Task</button>
+                </template>
+                <template x-if="$store.app.route.name === 'logs'">
+                    <button class="btn" @click="$dispatch('logs:refresh')">Refresh</button>
+                </template>
+                <template x-if="$store.app.route.name === 'logDetail'">
+                    <button class="btn" @click="$store.app.navigate('/logs')">&larr; Back to logs</button>
+                </template>
+                <template x-if="$store.app.route.name === 'logDetail'">
+                    <button class="btn btn-danger" @click="$dispatch('log:delete-current')">Delete log</button>
+                </template>
+            </div>
+        </header>
+
+        <section class="view-container">
+            <div x-show="$store.app.route.name === 'tasks'" x-data="tasksView">
+                <template x-if="loading">
+                    <div class="loading-overlay"><span class="spinner"></span>Loading tasks...</div>
+                </template>
+                <template x-if="!loading && tasks.length === 0">
+                    <div class="card empty">
+                        <div class="empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <h3>No tasks yet</h3>
+                        <p>Create your first scheduled task to get started.</p>
+                    </div>
+                </template>
+                <div class="card" x-show="!loading && tasks.length > 0">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th><th>Name</th><th>Project</th>
+                                <th>Cron</th><th>Type</th><th>Status</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="t in tasks" :key="t.id">
+                                <tr>
+                                    <td x-text="t.id"></td>
+                                    <td>
+                                        <strong x-text="t.name"></strong>
+                                        <div class="muted" x-show="t.description" x-text="t.description"></div>
+                                    </td>
+                                    <td><span class="badge badge-accent" x-text="t.project"></span></td>
+                                    <td class="mono" x-text="t.cron"></td>
+                                    <td><span class="badge" :class="t.type === 'sync' ? 'badge-warning' : ''" x-text="t.type"></span></td>
+                                    <td>
+                                        <span class="badge" :class="t.disabled ? 'badge-danger' : 'badge-success'"
+                                              x-text="t.disabled ? 'Disabled' : 'Active'"></span>
+                                    </td>
+                                    <td class="actions-col">
+                                        <div class="row-actions">
+                                            <button class="btn btn-sm btn-ghost" @click="$store.modal.show('taskEdit', t)">Edit</button>
+                                            <button class="btn btn-sm" @click="trigger(t)">Run now</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div x-show="$store.app.route.name === 'logs'" x-data="logsView">
+                <div class="filter-bar">
+                    <div class="filter-field grow">
+                        <label>Search</label>
+                        <input type="text" placeholder="Search task or project..." x-model="filters.search" />
+                    </div>
+                    <div class="filter-field">
+                        <label>Project</label>
+                        <select x-model="filters.project">
+                            <option value="">All</option>
+                            <template x-for="p in projectOptions" :key="p">
+                                <option :value="p" x-text="p"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <label>Type</label>
+                        <select x-model="filters.type">
+                            <option value="">All</option>
+                            <option value="async">async</option>
+                            <option value="sync">sync</option>
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="button" class="btn btn-ghost btn-sm" @click="clearFilters()">Clear</button>
+                        <button type="button" class="btn btn-danger btn-sm" x-show="selected.length > 0" @click="deleteSelected()">
+                            <span>Delete</span>
+                            <span class="badge" x-text="selected.length"></span>
+                        </button>
+                    </div>
+                </div>
+                <template x-if="loading">
+                    <div class="loading-overlay"><span class="spinner"></span>Loading logs...</div>
+                </template>
+                <template x-if="!loading && filtered.length === 0">
+                    <div class="card empty">
+                        <div class="empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="7"></circle>
+                                <line x1="20" y1="20" x2="16.5" y2="16.5"></line>
+                            </svg>
+                        </div>
+                        <h3 x-text="allLogs.length ? 'No matches' : 'No execution logs'"></h3>
+                        <p x-text="allLogs.length ? 'Try adjusting the filters.' : 'Logs will appear here after tasks run.'"></p>
+                    </div>
+                </template>
+                <div class="card" x-show="!loading && filtered.length > 0">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th class="check-col">
+                                    <label class="check-cell">
+                                        <input type="checkbox"
+                                               :checked="allFilteredSelected"
+                                               :indeterminate.camel="someFilteredSelected"
+                                               @change="toggleSelectAll()" />
+                                    </label>
+                                </th>
+                                <th>ID</th><th>Timestamp</th><th>Project</th>
+                                <th>Task</th><th>Type</th><th>Duration</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="l in filtered" :key="l.id">
+                                <tr style="cursor:pointer" :class="{ selected: isSelected(l.id) }" @click="$store.app.navigate('/logs/' + l.id)">
+                                    <td class="check-col" @click.stop>
+                                        <label class="check-cell">
+                                            <input type="checkbox" :checked="isSelected(l.id)" @change="toggleSelect(l.id)" />
+                                        </label>
+                                    </td>
+                                    <td x-text="l.id"></td>
+                                    <td x-text="formatDate(l.timestamp)"></td>
+                                    <td><span class="badge badge-accent" x-text="l.project"></span></td>
+                                    <td x-text="l.name"></td>
+                                    <td><span class="badge" :class="l.type === 'sync' ? 'badge-warning' : ''" x-text="l.type"></span></td>
+                                    <td class="mono" x-text="l.execution_time != null ? l.execution_time + ' ms' : '—'"></td>
+                                    <td class="actions-col">
+                                        <div class="row-actions">
+                                            <button class="btn btn-sm btn-danger" @click.stop="deleteLog(l)">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div x-show="$store.app.route.name === 'logDetail'" x-data="logDetailView">
+                <template x-if="loading">
+                    <div class="loading-overlay"><span class="spinner"></span>Loading log...</div>
+                </template>
+                <template x-if="!loading && !log">
+                    <div class="card empty"><h3>Log not found</h3><p x-text="error || ''"></p></div>
+                </template>
+                <template x-if="!loading && log">
+                    <div>
+                        <div class="detail-section">
+                            <h3>Overview</h3>
+                            <dl class="detail-grid">
+                                <dt>ID</dt><dd x-text="log.id"></dd>
+                                <dt>Timestamp</dt><dd x-text="formatDate(log.timestamp)"></dd>
+                                <dt>Project</dt><dd><span class="badge badge-accent" x-text="log.project"></span></dd>
+                                <dt>Task</dt><dd x-text="log.name"></dd>
+                                <dt>Description</dt><dd x-text="log.description || '—'"></dd>
+                                <dt>Type</dt><dd><span class="badge" :class="log.type === 'sync' ? 'badge-warning' : ''" x-text="log.type"></span></dd>
+                                <dt>Duration</dt><dd x-text="log.execution_time != null ? log.execution_time + ' ms' : '—'"></dd>
+                            </dl>
+                        </div>
+                        <div class="detail-section">
+                            <h3>Command</h3>
+                            <div class="code-block" x-text="log.command || '—'"></div>
+                        </div>
+                        <div class="detail-section">
+                            <h3>Response</h3>
+                            <div class="code-block" x-text="log.response || '—'"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-backdrop" :class="{ open: $store.modal.open }" @click.self="$store.modal.close()">
+        <div class="modal" x-show="$store.modal.open">
+            <header class="modal-header">
+                <h3 x-text="$store.modal.type === 'taskEdit' ? 'Edit Task' : 'New Task'"></h3>
+                <button class="icon-btn" @click="$store.modal.close()">&times;</button>
+            </header>
+            <div class="modal-body">
+                <template x-if="$store.modal.open && ($store.modal.type === 'taskCreate' || $store.modal.type === 'taskEdit')">
+                    <form class="form-grid" x-data="taskForm" @submit.prevent="submit()">
+                        <div class="form-field">
+                            <label>Project</label>
+                            <input type="text" x-model="data.project" required />
+                        </div>
+                        <div class="form-field">
+                            <label>Name</label>
+                            <input type="text" x-model="data.name" required />
+                        </div>
+                        <div class="form-field">
+                            <label>Type</label>
+                            <select x-model="data.type">
+                                <option value="async">async</option>
+                                <option value="sync">sync</option>
+                            </select>
+                        </div>
+                        <div class="form-field full">
+                            <label>Command / URL</label>
+                            <textarea x-model="data.command" required></textarea>
+                        </div>
+                        <div class="form-field full">
+                            <label>Description</label>
+                            <textarea x-model="data.description"></textarea>
+                        </div>
+
+                        <div class="form-field full" x-data="cronInput()" x-init="bind($el.querySelector('input[name=cron]'))">
+                            <label>Schedule</label>
+                            <div class="cron-builder">
+                                <div class="cron-hero" :class="{ valid: feedback.valid, invalid: feedback.invalid }">
+                                    <span class="cron-corner tl"></span>
+                                    <span class="cron-corner br"></span>
+                                    <div class="cron-hero-top">
+                                        <span class="cron-hero-label">Cron expression</span>
+                                        <div class="cron-mode-toggle">
+                                            <button type="button" :class="{ active: mode === 'builder' }" @click="setMode('builder')">Builder</button>
+                                            <button type="button" :class="{ active: mode === 'manual' }" @click="setMode('manual')">Manual</button>
+                                        </div>
+                                    </div>
+                                    <div class="cron-hero-expr" x-text="data.cron || '— — — — —'"></div>
+                                    <div class="cron-hero-desc">
+                                        <span class="cron-feedback-icon" x-text="feedback.icon"></span>
+                                        <span x-text="feedback.text"></span>
+                                    </div>
+                                </div>
+                                <input type="text" name="cron" placeholder="*/5 * * * *" autocomplete="off" required x-model="data.cron" x-show="mode === 'manual'" />
+                                <div x-show="mode === 'builder'" x-data="cronBuilder($root)" class="cron-builder-body">
+                                    <div class="cron-freq-tabs">
+                                        <template x-for="f in frequencies" :key="f.key">
+                                            <button type="button" :class="{ active: freq === f.key }" @click="setFreq(f.key)" x-text="f.label"></button>
+                                        </template>
+                                    </div>
+                                    <div class="cron-control">
+                                        <div class="cron-control-row" x-show="freq === 'minute'">
+                                            <span class="cron-label">Run every</span>
+                                            <input type="number" min="1" max="59" x-model.number="everyMin" @input="emit()" />
+                                            <span class="cron-label">minute(s)</span>
+                                        </div>
+                                        <div class="cron-control-row" x-show="freq === 'hour'">
+                                            <span class="cron-label">Every</span>
+                                            <input type="number" min="1" max="23" x-model.number="everyHour" @input="emit()" />
+                                            <span class="cron-label">hour(s), at minute</span>
+                                            <input type="number" min="0" max="59" x-model.number="minuteOfHour" @input="emit()" />
+                                        </div>
+                                        <div class="cron-control-row" x-show="freq === 'day'">
+                                            <span class="cron-label">Every day at</span>
+                                            <input type="time" x-model="time" @input="emit()" />
+                                        </div>
+                                        <template x-if="freq === 'week'">
+                                            <div class="cron-control-col">
+                                                <div class="cron-control-row">
+                                                    <span class="cron-label">At</span>
+                                                    <input type="time" x-model="time" @input="emit()" />
+                                                    <span class="cron-label">on</span>
+                                                </div>
+                                                <div class="cron-weekdays">
+                                                    <template x-for="d in weekdayItems" :key="d.v">
+                                                        <button type="button" class="cron-toggle-chip"
+                                                                :class="{ active: weekdays.includes(d.v) }"
+                                                                @click="toggleWeekday(d.v)" x-text="d.l"></button>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <div class="cron-control-row" x-show="freq === 'month'">
+                                            <span class="cron-label">At</span>
+                                            <input type="time" x-model="time" @input="emit()" />
+                                            <span class="cron-label">on day(s)</span>
+                                            <input type="text" class="cron-csv" placeholder="1,15" x-model="monthdays" @input="emit()" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <label class="form-check">
+                                <input type="checkbox" x-model="data.oneshot" />
+                                <span>One-shot execution</span>
+                            </label>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-check">
+                                <input type="checkbox" x-model="data.disabled" />
+                                <span x-text="$store.modal.type === 'taskEdit' ? 'Disabled' : 'Create as disabled'"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-ghost" @click="$store.modal.close()">Cancel</button>
+                            <button type="submit" class="btn btn-primary" :disabled="submitting"
+                                    x-text="submitting ? 'Saving...' : ($store.modal.type === 'taskEdit' ? 'Save changes' : 'Create Task')"></button>
+                        </div>
+                    </form>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container">
+        <template x-for="t in $store.toast.items" :key="t.id">
+            <div class="toast" :class="t.kind" x-text="t.message"></div>
+        </template>
+    </div>
+</body>
+</html>
